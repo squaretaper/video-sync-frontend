@@ -57,56 +57,63 @@
     <source src="audio.mp4" type="audio/mp4" />
   </audio>
 
-  <script>
-    const button = document.getElementById("startBtn");
-    const audio = document.getElementById("audio");
-    const socket = new WebSocket("wss://video-sync-server-production-164e.up.railway.app");
+ 
+   <script>
+  const button = document.getElementById("startBtn");
+  const audio = document.getElementById("audio");
+  const socket = new WebSocket("wss://video-sync-server-production-164e.up.railway.app");
 
-    let userInteracted = false;
-    let hasStarted = false;
-    const MAX_DIFF = 0.2;
-    const CORRECTION_SPEED = 0.05;
+  let userInteracted = false;
+  let hasStarted = false;
+  let firstSyncTime = null;
 
-    button.addEventListener("click", async () => {
-      userInteracted = true;
+  const MAX_DIFF = 0.2;
+  const CORRECTION_SPEED = 0.05;
 
-      try {
-        await audio.play(); // Unlock playback
-        console.log("Audio unlocked");
-      } catch (err) {
-        console.error("Initial play failed:", err);
-      }
+  button.addEventListener("click", () => {
+    userInteracted = true;
+    button.style.display = "none";
 
-      button.style.display = "none";
-    });
+    if (firstSyncTime !== null) {
+      // Already received a sync time – start audio now
+      startSyncedAudio(firstSyncTime);
+    }
+  });
 
-    socket.addEventListener("message", async (event) => {
-      const { currentTime } = JSON.parse(event.data);
+  socket.addEventListener("message", async (event) => {
+    const { currentTime } = JSON.parse(event.data);
 
-      if (!hasStarted && userInteracted) {
-        try {
-          audio.pause();
-          audio.currentTime = currentTime;
-          audio.muted = false;
-          await audio.play();
-          hasStarted = true;
-          console.log("Audio synced");
-        } catch (err) {
-          console.error("Playback error:", err);
-        }
-        return;
-      }
+    if (!userInteracted) {
+      firstSyncTime = currentTime; // Save it and wait for tap
+      return;
+    }
 
-      if (!hasStarted) return;
+    if (!hasStarted) {
+      startSyncedAudio(currentTime);
+      return;
+    }
 
-      const diff = audio.currentTime - currentTime;
-      if (Math.abs(diff) > MAX_DIFF) {
-        audio.currentTime = currentTime;
-        audio.playbackRate = 1;
-      } else {
-        audio.playbackRate = 1 - diff * CORRECTION_SPEED;
-      }
-    });
-  </script>
+    // If already playing, do sync drift correction
+    const diff = audio.currentTime - currentTime;
+    if (Math.abs(diff) > MAX_DIFF) {
+      audio.currentTime = currentTime;
+      audio.playbackRate = 1;
+    } else {
+      audio.playbackRate = 1 - diff * CORRECTION_SPEED;
+    }
+  });
+
+  async function startSyncedAudio(currentTime) {
+    try {
+      audio.pause(); // Reset cleanly
+      audio.currentTime = currentTime;
+      audio.muted = false;
+      await audio.play();
+      hasStarted = true;
+      console.log("Audio started synced at", currentTime);
+    } catch (err) {
+      console.error("Failed to start audio:", err);
+    }
+  } </script>
 </body>
 </html>
