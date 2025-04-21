@@ -68,17 +68,19 @@
   const MAX_DIFF = 0.2;
   const CORRECTION_SPEED = 0.05;
 
-  button.addEventListener("click", () => {
-    button.style.display = "none";
-    audio.play()
-      .then(() => {
-        synced = true;
-        console.log("🔊 Audio playback started");
-      })
-      .catch(err => {
-        console.error("❌ Playback error:", err);
-      });
-  });
+ button.addEventListener("click", () => {
+  button.style.display = "none";
+  audio.muted = false; // 🔥 This is the key fix
+  audio.play()
+    .then(() => {
+      synced = true;
+      console.log("🔊 Audio playback started");
+    })
+    .catch(err => {
+      console.error("❌ Playback error:", err);
+    });
+});
+
 
   socket.addEventListener("message", (event) => {
     if (!synced) return;
