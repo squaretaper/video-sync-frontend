@@ -62,50 +62,59 @@
     <button id="artworkBtn">View the Artwork</button>
   </a>
 
-  <video id="video" preload="auto" playsinline>
-    <source src="video.mp4" type="video/mp4">
-  </video>
+<video id="video" muted playsinline preload="auto">
+  <source src="video.mp4" type="video/mp4">
+</video>
+
 
   <script>
     const button = document.getElementById("startBtn");
     const video = document.getElementById("video");
     const socket = new WebSocket("wss://video-sync-server.up.railway.app");
 
-    let hasStarted = false;
-    let userInteracted = false;
-    const MAX_DIFF = 0.2;
-    const CORRECTION_SPEED = 0.05;
+   let userInteracted = false;
+let hasStarted = false;
+const MAX_DIFF = 0.2;
+const CORRECTION_SPEED = 0.05;
 
-    // Wait for user interaction to unlock audio
-    button.addEventListener("click", () => {
-      userInteracted = true;
-      video.load(); // ensures it's ready
-      button.style.display = "none";
-    });
+button.addEventListener("click", async () => {
+  userInteracted = true;
 
-    socket.addEventListener("message", (event) => {
-      const { currentTime } = JSON.parse(event.data);
+  try {
+    await video.play(); // silent, muted start
+    console.log("Video unlocked via user gesture");
+  } catch (err) {
+    console.error("Initial play failed:", err);
+  }
 
-      if (!hasStarted && userInteracted) {
-        video.currentTime = currentTime;
-        video.muted = false;
-        video.play().catch((err) => {
-          console.error("Playback error:", err);
-        });
-        hasStarted = true;
-        return;
-      }
+  button.style.display = "none";
+});
 
-      if (!hasStarted) return;
+socket.addEventListener("message", (event) => {
+  const data = JSON.parse(event.data);
+  const currentTime = data.currentTime;
 
-      const diff = video.currentTime - currentTime;
-      if (Math.abs(diff) > MAX_DIFF) {
-        video.currentTime = currentTime;
-        video.playbackRate = 1;
-      } else {
-        video.playbackRate = 1 - diff * CORRECTION_SPEED;
-      }
-    });
+  if (!hasStarted && userInteracted) {
+    video.currentTime = currentTime;
+    video.muted = false;
+    video.play()
+      .then(() => console.log("Audio started synced"))
+      .catch((err) => console.error("Playback error:", err));
+    hasStarted = true;
+    return;
+  }
+
+  if (!hasStarted) return;
+
+  const diff = video.currentTime - currentTime;
+  if (Math.abs(diff) > MAX_DIFF) {
+    video.currentTime = currentTime;
+    video.playbackRate = 1;
+  } else {
+    video.playbackRate = 1 - diff * CORRECTION_SPEED;
+  }
+});
+
   </script>
 </body>
 </html>
