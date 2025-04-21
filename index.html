@@ -6,33 +6,43 @@
   <title>Listen Along</title>
   <style>
     body {
-      background-color: black;
+      margin: 0;
+      padding: 0;
+      background: black;
       color: white;
-      font-family: sans-serif;
+      font-family: "Akzidenz Grotesk", Helvetica, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
       text-align: center;
-      padding-top: 25vh;
     }
 
     h1 {
-      font-size: 2em;
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    p {
+      font-size: 1rem;
+      margin-bottom: 2rem;
+      max-width: 320px;
+      line-height: 1.4;
     }
 
     button {
+      padding: 1rem 2rem;
+      font-size: 1rem;
+      font-weight: bold;
       background: white;
       color: black;
       border: none;
-      padding: 12px 20px;
-      font-size: 1em;
-      margin-top: 20px;
       cursor: pointer;
+      margin: 0.5rem;
     }
 
-    #startBtn {
-      display: inline-block;
-    }
-
-    #artBtn {
-      margin-top: 10px;
+    #startBtn, #artBtn {
       display: inline-block;
     }
   </style>
@@ -42,14 +52,14 @@
   <p>Tap below to sync audio with the artwork you’re viewing on the main screen.</p>
 
   <button id="startBtn">Start Audio</button>
-  <br />
-  <button id="artBtn" onclick="window.location.href='host.html'">View the Artwork</button>
+  <button id="artBtn">View the Artwork</button>
 
-  <audio id="audio" src="audio.mp4" preload="auto" muted playsinline></audio>
+  <audio id="audio" src="audio.m4a" preload="auto" muted playsinline></audio>
 
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const button = document.getElementById("startBtn");
+      const artBtn = document.getElementById("artBtn");
       const audio = document.getElementById("audio");
       const socket = new WebSocket("wss://video-sync-server-production-164e.up.railway.app");
 
@@ -57,26 +67,37 @@
       const MAX_DIFF = 0.2;
       const CORRECTION_SPEED = 0.05;
 
+      // Preload audio
+      audio.load();
+
+      // Handle artwork button
+      artBtn.addEventListener("click", () => {
+        window.location.href = "host.html";
+      });
+
+      // Handle start audio
       button.addEventListener("click", () => {
         button.style.display = "none";
-        audio.load();         // force reinit
-        audio.muted = false;  // unmute on interaction
+        audio.muted = false;
 
         const tryPlay = () => {
-          audio.play()
-            .then(() => {
-              synced = true;
-              console.log("🎧 Audio playback started");
-            })
-            .catch(err => {
-              console.warn("❌ Playback error, retrying...", err);
-              setTimeout(tryPlay, 500);
-            });
+          if (audio.paused) {
+            audio.play()
+              .then(() => {
+                synced = true;
+                console.log("🎧 Audio playback started");
+              })
+              .catch(err => {
+                console.warn("❌ Playback error, retrying...", err.name, err.message);
+                setTimeout(tryPlay, 1000);
+              });
+          }
         };
 
         tryPlay();
       });
 
+      // Handle sync via websocket
       socket.addEventListener("message", (event) => {
         if (!synced) return;
         const { currentTime } = JSON.parse(event.data);
