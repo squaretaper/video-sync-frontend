@@ -58,7 +58,9 @@
   </audio>
 
  
-   <script>
+ 
+
+<script>
   const button = document.getElementById("startBtn");
   const audio = document.getElementById("audio");
   const socket = new WebSocket("wss://video-sync-server-production-164e.up.railway.app");
@@ -66,25 +68,33 @@
   let userInteracted = false;
   let hasStarted = false;
   let firstSyncTime = null;
-
   const MAX_DIFF = 0.2;
   const CORRECTION_SPEED = 0.05;
 
-  button.addEventListener("click", () => {
+  // Step 1: Unlock autoplay with muted play on tap
+  button.addEventListener("click", async () => {
     userInteracted = true;
     button.style.display = "none";
 
-    if (firstSyncTime !== null) {
-      // Already received a sync time – start audio now
-      startSyncedAudio(firstSyncTime);
+    try {
+      audio.muted = true;
+      await audio.play();
+      console.log("✅ Autoplay unlocked");
+
+      if (firstSyncTime !== null) {
+        startSyncedAudio(firstSyncTime);
+      }
+    } catch (err) {
+      console.error("🚫 Autoplay unlock failed:", err);
     }
   });
 
+  // Step 2: On sync, unmute + seek + restart cleanly
   socket.addEventListener("message", async (event) => {
     const { currentTime } = JSON.parse(event.data);
 
     if (!userInteracted) {
-      firstSyncTime = currentTime; // Save it and wait for tap
+      firstSyncTime = currentTime;
       return;
     }
 
@@ -93,7 +103,6 @@
       return;
     }
 
-    // If already playing, do sync drift correction
     const diff = audio.currentTime - currentTime;
     if (Math.abs(diff) > MAX_DIFF) {
       audio.currentTime = currentTime;
@@ -105,15 +114,19 @@
 
   async function startSyncedAudio(currentTime) {
     try {
-      audio.pause(); // Reset cleanly
+      audio.pause();
       audio.currentTime = currentTime;
       audio.muted = false;
       await audio.play();
       hasStarted = true;
-      console.log("Audio started synced at", currentTime);
+      console.log("🎧 Synced audio started at", currentTime);
     } catch (err) {
-      console.error("Failed to start audio:", err);
+      console.error("🚫 Sync playback failed:", err);
     }
-  } </script>
+  }
+
+
+
+</script>
 </body>
 </html>
