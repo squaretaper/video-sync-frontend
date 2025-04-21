@@ -90,17 +90,21 @@ button.addEventListener("click", async () => {
   button.style.display = "none";
 });
 
-socket.addEventListener("message", (event) => {
+socket.addEventListener("message", async (event) => {
   const data = JSON.parse(event.data);
   const currentTime = data.currentTime;
 
   if (!hasStarted && userInteracted) {
-    video.currentTime = currentTime;
-    video.muted = false;
-    video.play()
-      .then(() => console.log("Audio started synced"))
-      .catch((err) => console.error("Playback error:", err));
-    hasStarted = true;
+    try {
+      await video.pause();
+      video.currentTime = currentTime;
+      video.muted = false;
+      await video.play();
+      console.log("Audio started synced");
+      hasStarted = true;
+    } catch (err) {
+      console.error("Error starting synced audio:", err);
+    }
     return;
   }
 
@@ -114,6 +118,7 @@ socket.addEventListener("message", (event) => {
     video.playbackRate = 1 - diff * CORRECTION_SPEED;
   }
 });
+
 
   </script>
 </body>
