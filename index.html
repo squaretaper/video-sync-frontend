@@ -5,15 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Audio Companion</title>
   <style>
-    @font-face {
-      font-family: 'AkzidenzGrotesk';
-      src: local('Akzidenz-Grotesk'), local('Helvetica Neue'), local('Helvetica'), sans-serif;
-    }
-
     body {
       margin: 0;
       padding: 0;
-      font-family: 'AkzidenzGrotesk', 'Helvetica Neue', Helvetica, sans-serif;
+      font-family: 'Helvetica Neue', Helvetica, sans-serif;
       background: black;
       color: white;
       display: flex;
@@ -24,13 +19,9 @@
       text-align: center;
     }
 
-    #video {
-      display: none;
-    }
-
     h1 {
       font-size: 2em;
-      margin: 0 0 0.5em;
+      margin-bottom: 0.5em;
     }
 
     p {
@@ -49,8 +40,8 @@
       margin: 1em;
     }
 
-    #startBtn {
-      font-weight: bold;
+    audio {
+      display: none;
     }
   </style>
 </head>
@@ -62,64 +53,60 @@
     <button id="artworkBtn">View the Artwork</button>
   </a>
 
-<video id="video" muted playsinline preload="auto">
-  <source src="video.mp4" type="video/mp4">
-</video>
-
+  <audio id="audio" preload="auto" playsinline muted>
+    <source src="audio.mp4" type="audio/mp4" />
+  </audio>
 
   <script>
     const button = document.getElementById("startBtn");
-    const video = document.getElementById("video");
-    const socket = new WebSocket("wss://video-sync-server-production-164e.up.railway.app");
+    const audio = document.getElementById("audio");
+    const socket = new WebSocket("wss://video-sync-server.up.railway.app");
 
-   let userInteracted = false;
-let hasStarted = false;
-const MAX_DIFF = 0.2;
-const CORRECTION_SPEED = 0.05;
+    let userInteracted = false;
+    let hasStarted = false;
+    const MAX_DIFF = 0.2;
+    const CORRECTION_SPEED = 0.05;
 
-button.addEventListener("click", async () => {
-  userInteracted = true;
+    button.addEventListener("click", async () => {
+      userInteracted = true;
 
-  try {
-    await video.play(); // silent, muted start
-    console.log("Video unlocked via user gesture");
-  } catch (err) {
-    console.error("Initial play failed:", err);
-  }
+      try {
+        await audio.play(); // Unlock playback
+        console.log("Audio unlocked");
+      } catch (err) {
+        console.error("Initial play failed:", err);
+      }
 
-  button.style.display = "none";
-});
+      button.style.display = "none";
+    });
 
-socket.addEventListener("message", async (event) => {
-  const data = JSON.parse(event.data);
-  const currentTime = data.currentTime;
+    socket.addEventListener("message", async (event) => {
+      const { currentTime } = JSON.parse(event.data);
 
-  if (!hasStarted && userInteracted) {
-    try {
-      await video.pause();
-      video.currentTime = currentTime;
-      video.muted = false;
-      await video.play();
-      console.log("Audio started synced");
-      hasStarted = true;
-    } catch (err) {
-      console.error("Error starting synced audio:", err);
-    }
-    return;
-  }
+      if (!hasStarted && userInteracted) {
+        try {
+          audio.pause();
+          audio.currentTime = currentTime;
+          audio.muted = false;
+          await audio.play();
+          hasStarted = true;
+          console.log("Audio synced");
+        } catch (err) {
+          console.error("Playback error:", err);
+        }
+        return;
+      }
 
-  if (!hasStarted) return;
+      if (!hasStarted) return;
 
-  const diff = video.currentTime - currentTime;
-  if (Math.abs(diff) > MAX_DIFF) {
-    video.currentTime = currentTime;
-    video.playbackRate = 1;
-  } else {
-    video.playbackRate = 1 - diff * CORRECTION_SPEED;
-  }
-});
-
-
+      const diff = audio.currentTime - currentTime;
+      if (Math.abs(diff) > MAX_DIFF) {
+        audio.currentTime = currentTime;
+        audio.playbackRate = 1;
+      } else {
+        audio.playbackRate = 1 - diff * CORRECTION_SPEED;
+      }
+    });
   </script>
 </body>
 </html>
