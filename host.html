@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Big Screen Video</title>
+  <style>
+    body, html { margin: 0; padding: 0; background: black; height: 100%; }
+    video { width: 100vw; height: 100vh; object-fit: cover; }
+  </style>
+</head>
+<body>
+  <video id="video" autoplay loop muted playsinline>
+    <source src="video.mp4" type="video/mp4">
+  </video>
+
+  <script>
+    const video = document.getElementById("video");
+    const socket = new WebSocket("wss://video-sync-server.up.railway.app");
+
+    socket.addEventListener("open", () => {
+      console.log("WebSocket connected");
+
+      setInterval(() => {
+        if (!video.paused && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ currentTime: video.currentTime }));
+        }
+      }, 100);
+    });
+  </script>
+</body>
+</html>
