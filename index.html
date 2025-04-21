@@ -6,90 +6,90 @@
   <title>Listen Along</title>
   <style>
     body {
-      margin: 0;
-      padding: 0;
-      background: black;
+      background-color: black;
       color: white;
-      font-family: "Akzidenz Grotesk", Helvetica, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
+      font-family: sans-serif;
       text-align: center;
+      padding-top: 25vh;
     }
+
     h1 {
-      font-size: 2rem;
+      font-size: 2em;
     }
-    p {
-      font-size: 1rem;
-      margin-bottom: 2rem;
-    }
+
     button {
-      padding: 1rem 2rem;
-      margin: 0.5rem;
-      font-size: 1rem;
-      font-weight: bold;
       background: white;
       color: black;
       border: none;
+      padding: 12px 20px;
+      font-size: 1em;
+      margin-top: 20px;
       cursor: pointer;
+    }
+
+    #startBtn {
+      display: inline-block;
+    }
+
+    #artBtn {
+      margin-top: 10px;
+      display: inline-block;
     }
   </style>
 </head>
 <body>
   <h1>Listen Along</h1>
   <p>Tap below to sync audio with the artwork you’re viewing on the main screen.</p>
+
   <button id="startBtn">Start Audio</button>
   <br />
-  <button onclick="window.location.href='https://heftgallery.com/mario'">View the Artwork</button>
+  <button id="artBtn" onclick="window.location.href='host.html'">View the Artwork</button>
 
-  <audio id="audio" preload="auto" playsinline muted>
-    <source src="/audio.mp4" type="audio/mpeg" />
-  </audio>
+  <audio id="audio" src="audio.mp4" preload="auto" muted playsinline></audio>
 
   <script>
-    const button = document.getElementById("startBtn");
-    const audio = document.getElementById("audio");
-    const socket = new WebSocket("wss://video-sync-server-production-164e.up.railway.app");
+    document.addEventListener("DOMContentLoaded", () => {
+      const button = document.getElementById("startBtn");
+      const audio = document.getElementById("audio");
+      const socket = new WebSocket("wss://video-sync-server-production-164e.up.railway.app");
 
-    let synced = false;
-    const MAX_DIFF = 0.2;
-    const CORRECTION_SPEED = 0.05;
+      let synced = false;
+      const MAX_DIFF = 0.2;
+      const CORRECTION_SPEED = 0.05;
 
-    button.addEventListener("click", () => {
-      button.style.display = "none";
+      button.addEventListener("click", () => {
+        button.style.display = "none";
+        audio.load();         // force reinit
+        audio.muted = false;  // unmute on interaction
 
-      audio.load();
-      audio.muted = false;
+        const tryPlay = () => {
+          audio.play()
+            .then(() => {
+              synced = true;
+              console.log("🎧 Audio playback started");
+            })
+            .catch(err => {
+              console.warn("❌ Playback error, retrying...", err);
+              setTimeout(tryPlay, 500);
+            });
+        };
 
-      const tryPlay = () => {
-        audio.play()
-          .then(() => {
-            synced = true;
-            console.log("🎧 Audio playback started");
-          })
-          .catch(err => {
-            console.warn("❌ Playback error, retrying...", err);
-            setTimeout(tryPlay, 500);
-          });
-      };
+        tryPlay();
+      });
 
-      tryPlay();
-    });
+      socket.addEventListener("message", (event) => {
+        if (!synced) return;
+        const { currentTime } = JSON.parse(event.data);
+        const diff = audio.currentTime - currentTime;
 
-    socket.addEventListener("message", (event) => {
-      if (!synced) return;
-      const { currentTime } = JSON.parse(event.data);
-      const diff = audio.currentTime - currentTime;
-
-      if (Math.abs(diff) > MAX_DIFF) {
-        audio.currentTime = currentTime;
-        audio.playbackRate = 1;
-        console.log("⏱️ Hard sync to", currentTime);
-      } else {
-        audio.playbackRate = 1 - diff * CORRECTION_SPEED;
-      }
+        if (Math.abs(diff) > MAX_DIFF) {
+          audio.currentTime = currentTime;
+          audio.playbackRate = 1;
+          console.log("🕰 Hard sync to", currentTime);
+        } else {
+          audio.playbackRate = 1 - diff * CORRECTION_SPEED;
+        }
+      });
     });
   </script>
 </body>
