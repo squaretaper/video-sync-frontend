@@ -3,59 +3,67 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>altface</title>
+  <title>Audio Companion</title>
   <style>
     @font-face {
-      font-family: "Akzidenz";
-      src: url("AkzidenzGrotesk.ttf") format("truetype");
+      font-family: 'AkzidenzGrotesk';
+      src: local('Akzidenz-Grotesk'), local('Helvetica Neue'), local('Helvetica'), sans-serif;
     }
 
     body {
       margin: 0;
       padding: 0;
-      font-family: "Akzidenz", "Helvetica Neue", Helvetica, Arial, sans-serif;
-      background-color: #fff;
-      color: #000;
+      font-family: 'AkzidenzGrotesk', 'Helvetica Neue', Helvetica, sans-serif;
+      background: black;
+      color: white;
       display: flex;
       flex-direction: column;
-      align-items: center;
       justify-content: center;
+      align-items: center;
       height: 100vh;
       text-align: center;
     }
 
+    #video {
+      display: none;
+    }
+
     h1 {
-      font-size: 2rem;
-      margin-bottom: 1rem;
+      font-size: 2em;
+      margin: 0 0 0.5em;
     }
 
     p {
-      font-size: 1rem;
-      margin-bottom: 2rem;
-      max-width: 400px;
+      font-size: 1em;
+      margin: 0 0 2em;
+      max-width: 80%;
     }
 
-    button {
-      background-color: #000;
-      color: #fff;
-      padding: 1rem 2rem;
+    #startBtn, #artworkBtn {
+      background: white;
+      color: black;
       border: none;
+      padding: 1em 2em;
+      font-size: 1em;
       cursor: pointer;
-      font-size: 1rem;
-      font-family: inherit;
+      margin: 1em;
     }
 
-    video {
-      display: none;
+    #startBtn {
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <h1>altface</h1>
-  <p>Click below to listen in sync with the video.</p>
+  <h1>Listen Along</h1>
+  <p>Tap below to sync audio with the artwork you’re viewing on the main screen.</p>
   <button id="startBtn">Start Audio</button>
-  <video id="video" muted>
-    <source src="video.mp4" type="video/mp4" />
+  <a href="https://heftgallery.com/mario" target="_blank">
+    <button id="artworkBtn">View the Artwork</button>
+  </a>
+
+  <video id="video" preload="auto" playsinline>
+    <source src="video.mp4" type="video/mp4">
   </video>
 
   <script>
@@ -63,23 +71,27 @@
     const video = document.getElementById("video");
     const socket = new WebSocket("wss://video-sync-server.up.railway.app");
 
-    let userInteracted = false;
     let hasStarted = false;
-    const MAX_DIFF = 0.5; // seconds
-    const CORRECTION_SPEED = 0.05; // adjust playback rate gradually
+    let userInteracted = false;
+    const MAX_DIFF = 0.2;
+    const CORRECTION_SPEED = 0.05;
 
+    // Wait for user interaction to unlock audio
     button.addEventListener("click", () => {
-      video.muted = false;
       userInteracted = true;
+      video.load(); // ensures it's ready
+      button.style.display = "none";
     });
 
     socket.addEventListener("message", (event) => {
-      const data = JSON.parse(event.data);
-      const currentTime = data.currentTime;
+      const { currentTime } = JSON.parse(event.data);
 
       if (!hasStarted && userInteracted) {
         video.currentTime = currentTime;
-        video.play();
+        video.muted = false;
+        video.play().catch((err) => {
+          console.error("Playback error:", err);
+        });
         hasStarted = true;
         return;
       }
