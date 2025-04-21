@@ -54,12 +54,12 @@
   </a>
 
   <audio id="audio" preload="auto" playsinline muted>
-    <source src="audio.mp4" type="audio/mp4" />
-  </audio>
+  <source src="audio.mp4" type="audio/mp4" />
+</audio>
+
 
  
- 
-<script>
+ <script>
   const button = document.getElementById("startBtn");
   const audio = document.getElementById("audio");
   const socket = new WebSocket("wss://video-sync-server-production-164e.up.railway.app");
@@ -68,19 +68,27 @@
   const MAX_DIFF = 0.2;
   const CORRECTION_SPEED = 0.05;
 
- button.addEventListener("click", () => {
-  button.style.display = "none";
-  audio.muted = false; // 🔥 This is the key fix
-  audio.play()
-    .then(() => {
-      synced = true;
-      console.log("🔊 Audio playback started");
-    })
-    .catch(err => {
-      console.error("❌ Playback error:", err);
-    });
-});
+  button.addEventListener("click", () => {
+    button.style.display = "none";
 
+    // Force-load audio
+    audio.load();
+    audio.muted = false;
+
+    const tryPlay = () => {
+      audio.play()
+        .then(() => {
+          console.log("🔊 Audio playback started");
+          synced = true;
+        })
+        .catch(err => {
+          console.warn("🚫 play() failed, retrying...", err);
+          setTimeout(tryPlay, 500);
+        });
+    };
+
+    tryPlay();
+  });
 
   socket.addEventListener("message", (event) => {
     if (!synced) return;
@@ -96,6 +104,7 @@
     }
   });
 </script>
+
 
 
 </body>
