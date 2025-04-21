@@ -59,10 +59,9 @@
 
  
  
-
 <script>
   const button = document.getElementById("startBtn");
-  const video = document.getElementById("video");
+  const audio = document.getElementById("audio");
   const socket = new WebSocket("wss://video-sync-server-production-164e.up.railway.app");
 
   let synced = false;
@@ -71,10 +70,10 @@
 
   button.addEventListener("click", () => {
     button.style.display = "none";
-    video.play()
+    audio.play()
       .then(() => {
         synced = true;
-        console.log("🔊 Playback started");
+        console.log("🔊 Audio playback started");
       })
       .catch(err => {
         console.error("❌ Playback error:", err);
@@ -84,17 +83,18 @@
   socket.addEventListener("message", (event) => {
     if (!synced) return;
     const { currentTime } = JSON.parse(event.data);
-    const diff = video.currentTime - currentTime;
+    const diff = audio.currentTime - currentTime;
 
     if (Math.abs(diff) > MAX_DIFF) {
-      video.currentTime = currentTime;
-      video.playbackRate = 1;
+      audio.currentTime = currentTime;
+      audio.playbackRate = 1;
       console.log("⏱ Hard sync to", currentTime);
     } else {
-      video.playbackRate = 1 - diff * CORRECTION_SPEED;
+      audio.playbackRate = 1 - diff * CORRECTION_SPEED;
     }
   });
 </script>
+
 
 </body>
 </html>
