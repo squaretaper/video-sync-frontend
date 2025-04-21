@@ -62,71 +62,39 @@
 
 <script>
   const button = document.getElementById("startBtn");
-  const audio = document.getElementById("audio");
-  const socket = new WebSocket("wss://video-sync-server-production-164e.up.railway.app");
+  const video = document.getElementById("video");
+  const socket = new WebSocket("wss://video-sync-server.up.railway.app");
 
-  let userInteracted = false;
-  let hasStarted = false;
-  let firstSyncTime = null;
+  let synced = false;
   const MAX_DIFF = 0.2;
   const CORRECTION_SPEED = 0.05;
 
-  // Step 1: Unlock autoplay with muted play on tap
-  button.addEventListener("click", async () => {
-    userInteracted = true;
+  button.addEventListener("click", () => {
     button.style.display = "none";
-
-    try {
-      audio.muted = true;
-      await audio.play();
-      console.log("✅ Autoplay unlocked");
-
-      if (firstSyncTime !== null) {
-        startSyncedAudio(firstSyncTime);
-      }
-    } catch (err) {
-      console.error("🚫 Autoplay unlock failed:", err);
-    }
+    video.play()
+      .then(() => {
+        synced = true;
+        console.log("🔊 Playback started");
+      })
+      .catch(err => {
+        console.error("❌ Playback error:", err);
+      });
   });
 
-  // Step 2: On sync, unmute + seek + restart cleanly
-  socket.addEventListener("message", async (event) => {
+  socket.addEventListener("message", (event) => {
+    if (!synced) return;
     const { currentTime } = JSON.parse(event.data);
+    const diff = video.currentTime - currentTime;
 
-    if (!userInteracted) {
-      firstSyncTime = currentTime;
-      return;
-    }
-
-    if (!hasStarted) {
-      startSyncedAudio(currentTime);
-      return;
-    }
-
-    const diff = audio.currentTime - currentTime;
     if (Math.abs(diff) > MAX_DIFF) {
-      audio.currentTime = currentTime;
-      audio.playbackRate = 1;
+      video.currentTime = currentTime;
+      video.playbackRate = 1;
+      console.log("⏱ Hard sync to", currentTime);
     } else {
-      audio.playbackRate = 1 - diff * CORRECTION_SPEED;
+      video.playbackRate = 1 - diff * CORRECTION_SPEED;
     }
   });
-
-  async function startSyncedAudio(currentTime) {
-    try {
-      audio.pause();
-      audio.currentTime = currentTime;
-      audio.muted = false;
-      await audio.play();
-      hasStarted = true;
-      console.log("🎧 Synced audio started at", currentTime);
-    } catch (err) {
-      console.error("🚫 Sync playback failed:", err);
-    }
-  }
-
-
-
 </script>
+
 </body>
 </html>
