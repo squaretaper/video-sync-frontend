@@ -54,7 +54,7 @@
   <button id="startBtn">Start Audio</button>
   <button id="artBtn">View the Artwork</button>
 
-  <audio id="audio" src="audio.m4a" preload="auto" muted playsinline></audio>
+  <audio id="audio" src="audio.m4a" preload="auto" playsinline muted></audio>
 
   <script>
     document.addEventListener("DOMContentLoaded", () => {
@@ -64,10 +64,12 @@
       const socket = new WebSocket("wss://video-sync-server-production-164e.up.railway.app");
 
       let synced = false;
-      const MAX_DIFF = 0.2;
-      const SYNC_COOLDOWN_MS = 2000;
-      let lastSync = 0;
+      let resyncedOnce = false;
 
+      // Debug
+      console.log("🎛 Audio object debug:", audio.outerHTML);
+
+      // Preload
       audio.load();
 
       artBtn.addEventListener("click", () => {
@@ -82,7 +84,6 @@
           if (audio.paused) {
             audio.play()
               .then(() => {
-                synced = true;
                 console.log("🎧 Audio playback started");
               })
               .catch(err => {
@@ -96,16 +97,21 @@
       });
 
       socket.addEventListener("message", (event) => {
-        if (!synced) return;
-
         const { currentTime } = JSON.parse(event.data);
-        const now = Date.now();
-        const diff = audio.currentTime - currentTime;
 
-        if (Math.abs(diff) > MAX_DIFF && (now - lastSync > SYNC_COOLDOWN_MS)) {
+        if (!synced) {
           audio.currentTime = currentTime;
-          lastSync = now;
-          console.log("🕰 Hard sync to", currentTime);
+          console.log("🕰 Initial sync to", currentTime);
+          synced = true;
+          return;
+        }
+
+        const diff = Math.abs(audio.currentTime - currentTime);
+
+        if (diff > 20 && !resyncedOnce) {
+          audio.currentTime = currentTime;
+          console.log("🔄 Resync due to host loop to", currentTime);
+          resyncedOnce = true;
         }
       });
     });
