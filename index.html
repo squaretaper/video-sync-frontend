@@ -54,7 +54,7 @@
   <button id="startBtn">Start Audio</button>
   <button id="artBtn">View the Artwork</button>
 
-  <audio id="audio" src="audio.m4a" preload="auto" playsinline></audio>
+  <audio id="audio" src="audio.m4a" preload="auto" playsinline muted></audio>
 
   <script>
     document.addEventListener("DOMContentLoaded", () => {
@@ -64,46 +64,59 @@
       const socket = new WebSocket("wss://video-sync-server-production-164e.up.railway.app");
 
       let synced = false;
+      let readyToSync = false;
       const MAX_DIFF = 0.2;
       const CORRECTION_SPEED = 0.05;
 
-      // Preload audio
-      audio.load();
+      // Log for debug
+      console.log("🎛 Audio object debug:", audio.outerHTML);
 
-      // Handle artwork button
+      // Wait for browser to say it's ready
+      audio.addEventListener("canplaythrough", () => {
+        readyToSync = true;
+        console.log("✅ Can play through");
+      });
+
+      // View artwork redirect
       artBtn.addEventListener("click", () => {
         window.location.href = "host.html";
       });
 
-      // Handle start audio
       button.addEventListener("click", () => {
         button.style.display = "none";
-
-        audio.pause();
-        audio.currentTime = 0;
+        audio.muted = false;
 
         const tryPlay = () => {
-          console.log("Audio object debug:", audio);
-
-          audio.play()
-            .then(() => {
-              synced = true;
-              console.log("🎧 Audio playback started");
-            })
-            .catch(err => {
-              console.warn("❌ Playback error, retrying...", err.name, err.message);
-              setTimeout(tryPlay, 1000);
-            });
+          if (audio.paused) {
+            audio.play()
+              .then(() => {
+                synced = true;
+                console.log("🎧 Audio playback started");
+              })
+              .catch(err => {
+                console.warn("❌ Playback error, retrying...", err.name, err.message);
+                setTimeout(tryPlay, 1000);
+              });
+          }
         };
 
         tryPlay();
       });
 
-      // Handle sync via websocket
       socket.addEventListener("message", (event) => {
-        if (!synced) return;
+        if (!synced || !readyToSync) return;
+
         const { currentTime } = JSON.parse(event.data);
-        const diff = audio.currentTime - currentTime;
+        const localTime = audio.currentTime;
+        const diff = localTime - currentTime;
+
+        // Safety guard
+        if (!Number.isFinite(currentTime) || currentTime < 0 || currentTime > audio.duration || Math.abs(diff) > 300) {
+          console.warn("⚠️ Ignoring out-of-bounds sync value", currentTime);
+          return;
+        }
+
+        console.log("🎯 Host:", currentTime, "| 📡 Me:", localTime);
 
         if (Math.abs(diff) > MAX_DIFF) {
           audio.currentTime = currentTime;
@@ -117,3 +130,4 @@
   </script>
 </body>
 </html>
+
