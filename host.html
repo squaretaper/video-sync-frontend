@@ -21,11 +21,24 @@
     socket.addEventListener("open", () => {
       console.log("WebSocket connected");
 
+      // Regular sync pulse
       setInterval(() => {
         if (!video.paused && socket.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify({ currentTime: video.currentTime }));
         }
       }, 100);
+    });
+
+    // Detect when the video loops and send resync
+    let lastTime = 0;
+    video.addEventListener("timeupdate", () => {
+      if (lastTime > 1 && video.currentTime < 0.5) {
+        console.log("🔁 Loop detected, broadcasting resync");
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ currentTime: 0 }));
+        }
+      }
+      lastTime = video.currentTime;
     });
   </script>
 </body>
