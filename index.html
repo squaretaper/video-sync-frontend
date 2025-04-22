@@ -66,16 +66,15 @@
       let synced = false;
       const MAX_DIFF = 0.2;
       const CORRECTION_SPEED = 0.05;
+      const LAST_HARD_SYNC = { time: 0 };
+      const HARD_SYNC_INTERVAL = 3000; // 3 seconds minimum between hard syncs
 
-      // Preload audio
       audio.load();
 
-      // Handle artwork button
       artBtn.addEventListener("click", () => {
         window.location.href = "host.html";
       });
 
-      // Handle start audio
       button.addEventListener("click", () => {
         button.style.display = "none";
         audio.muted = false;
@@ -97,15 +96,16 @@
         tryPlay();
       });
 
-      // Handle sync via websocket
       socket.addEventListener("message", (event) => {
         if (!synced) return;
         const { currentTime } = JSON.parse(event.data);
         const diff = audio.currentTime - currentTime;
+        const now = Date.now();
 
-        if (Math.abs(diff) > MAX_DIFF) {
+        if (Math.abs(diff) > MAX_DIFF && now - LAST_HARD_SYNC.time > HARD_SYNC_INTERVAL) {
           audio.currentTime = currentTime;
           audio.playbackRate = 1;
+          LAST_HARD_SYNC.time = now;
           console.log("🕰 Hard sync to", currentTime);
         } else {
           audio.playbackRate = 1 - diff * CORRECTION_SPEED;
