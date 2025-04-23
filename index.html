@@ -42,7 +42,7 @@
       margin: 0.5rem;
     }
 
-    #startBtn, #artBtn {
+    #startBtn, #artLink {
       display: inline-block;
     }
   </style>
@@ -52,29 +52,23 @@
   <p>Tap below to sync audio with the artwork you’re viewing on the main screen.</p>
 
   <button id="startBtn">Start Audio</button>
-  <button id="artBtn">View the Artwork</button>
+  <a href="https://verse.works/artworks/b1f32c80-8141-41c4-b08a-32131fac7ca6" target="_blank" id="artLink">
+    <button>View the Artwork</button>
+  </a>
 
   <audio id="audio" src="audio.m4a" preload="auto" playsinline muted></audio>
 
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const button = document.getElementById("startBtn");
-      const artBtn = document.getElementById("artBtn");
       const audio = document.getElementById("audio");
       const socket = new WebSocket("wss://video-sync-server-production-164e.up.railway.app");
 
       let synced = false;
       let resyncedOnce = false;
 
-      // Debug
       console.log("🎛 Audio object debug:", audio.outerHTML);
-
-      // Preload
       audio.load();
-
-      artBtn.addEventListener("click", () => {
-        window.location.href = "host.html";
-      });
 
       button.addEventListener("click", () => {
         button.style.display = "none";
