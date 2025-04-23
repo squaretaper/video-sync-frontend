@@ -66,6 +66,7 @@
 
       let synced = false;
       let resyncedOnce = false;
+      let latestHostTime = 0;
 
       console.log("🎛 Audio object debug:", audio.outerHTML);
       audio.load();
@@ -92,22 +93,29 @@
 
       socket.addEventListener("message", (event) => {
         const { currentTime } = JSON.parse(event.data);
+        latestHostTime = currentTime;
 
         if (!synced) {
           audio.currentTime = currentTime;
           console.log("🕰 Initial sync to", currentTime);
           synced = true;
-          return;
-        }
-
-        const diff = Math.abs(audio.currentTime - currentTime);
-
-        if (diff > 20 && !resyncedOnce) {
-          audio.currentTime = currentTime;
-          console.log("🔄 Resync due to host loop to", currentTime);
-          resyncedOnce = true;
         }
       });
+
+      // DRIFT CORRECTION: every 5 seconds
+      setInterval(() => {
+        if (!synced) return;
+
+        const drift = audio.currentTime - latestHostTime;
+        const threshold = 0.3;
+
+        if (Math.abs(drift) > threshold) {
+          console.log(`🎯 Drift of ${drift.toFixed(2)}s — correcting...`);
+          audio.currentTime = latestHostTime;
+        } else {
+          console.log(`✅ Drift of ${drift.toFixed(2)}s — within threshold`);
+        }
+      }, 5000);
     });
   </script>
 </body>
