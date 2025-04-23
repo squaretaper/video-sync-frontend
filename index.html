@@ -102,20 +102,26 @@
         }
       });
 
-      // DRIFT CORRECTION: every 5 seconds
-      setInterval(() => {
-        if (!synced) return;
+ // DRIFT CORRECTION: every 5 seconds via playbackRate
+setInterval(() => {
+  if (!synced) return;
 
-        const drift = audio.currentTime - latestHostTime;
-        const threshold = 0.3;
+  const drift = audio.currentTime - latestHostTime;
+  const threshold = 0.1; // anything smaller is imperceptible
+  const maxAdjustment = 0.02; // ±2% playback speed
 
-        if (Math.abs(drift) > threshold) {
-          console.log(`🎯 Drift of ${drift.toFixed(2)}s — correcting...`);
-          audio.currentTime = latestHostTime;
-        } else {
-          console.log(`✅ Drift of ${drift.toFixed(2)}s — within threshold`);
-        }
-      }, 5000);
+  if (Math.abs(drift) > threshold) {
+    const correction = Math.max(Math.min(-drift * 0.05, maxAdjustment), -maxAdjustment);
+    audio.playbackRate = 1 + correction;
+    console.log(`🎛 Adjusting playbackRate to ${audio.playbackRate.toFixed(3)} to fix drift of ${drift.toFixed(3)}s`);
+  } else {
+    if (audio.playbackRate !== 1) {
+      audio.playbackRate = 1;
+      console.log("✅ Playback rate normalized to 1.0");
+    }
+  }
+}, 5000);
+
     });
   </script>
 </body>
