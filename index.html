@@ -60,72 +60,47 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", () => {
-      const button = document.getElementById("startBtn");
       const audio = document.getElementById("audio");
+      const button = document.getElementById("startBtn");
       const socket = new WebSocket("wss://video-sync-server-production-164e.up.railway.app");
 
-      let synced = false;
       let latestHostTime = 0;
-      let targetRate = 1.0;
+      let synced = false;
 
-      console.log("🎛 Audio object debug:", audio.outerHTML);
-      audio.load();
+      socket.addEventListener("message", (event) => {
+        const { currentTime } = JSON.parse(event.data);
+        latestHostTime = currentTime;
+        if (!synced) {
+          console.log("🕰 Host time received:", currentTime);
+        }
+      });
 
       button.addEventListener("click", () => {
         button.style.display = "none";
         audio.muted = false;
 
         const tryPlay = () => {
-          if (audio.paused) {
-            audio.play()
-              .then(() => {
-                console.log("🎧 Audio playback started");
-              })
-              .catch(err => {
-                console.warn("❌ Playback error, retrying...", err.name, err.message);
-                setTimeout(tryPlay, 1000);
-              });
-          }
+          audio.currentTime = latestHostTime;
+          audio.play()
+            .then(() => {
+              console.log("🎧 Audio started at host time:", latestHostTime);
+              synced = true;
+              setTimeout(() => {
+                const drift = Math.abs(audio.currentTime - latestHostTime);
+                if (drift > 0.3) {
+                  console.log("🔄 Drift detected after start. Correcting...");
+                  audio.currentTime = latestHostTime;
+                }
+              }, 1000);
+            })
+            .catch((err) => {
+              console.warn("❌ Playback error. Retrying...", err);
+              setTimeout(tryPlay, 500);
+            });
         };
 
         tryPlay();
       });
-
-      socket.addEventListener("message", (event) => {
-        const { currentTime } = JSON.parse(event.data);
-        latestHostTime = currentTime;
-
-        if (!synced) {
-          audio.currentTime = currentTime;
-          console.log("🕰 Initial sync to", currentTime);
-          synced = true;
-        }
-      });
-
-      // DRIFT CORRECTION: update target rate every 3 sec
-      setInterval(() => {
-        if (!synced) return;
-
-        const drift = audio.currentTime - latestHostTime;
-        const threshold = 0.1;
-        const maxAdjustment = 0.02;
-
-        if (Math.abs(drift) > threshold) {
-          const correction = Math.max(Math.min(-drift * 0.05, maxAdjustment), -maxAdjustment);
-          targetRate = 1 + correction;
-          console.log(`🎯 Target playbackRate set to ${targetRate.toFixed(3)} for drift ${drift.toFixed(3)}s`);
-        } else {
-          targetRate = 1.0;
-        }
-      }, 3000);
-
-      // SMOOTH RATE BLEND: adjust every 100ms
-      setInterval(() => {
-        if (!synced) return;
-
-        const diff = targetRate - audio.playbackRate;
-        audio.playbackRate += diff * 0.1; // blend slowly toward target
-      }, 100);
     });
   </script>
 </body>
