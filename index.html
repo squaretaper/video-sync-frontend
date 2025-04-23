@@ -70,36 +70,25 @@
       socket.addEventListener("message", (event) => {
         const { currentTime } = JSON.parse(event.data);
         latestHostTime = currentTime;
-        if (!synced) {
-          console.log("🕰 Host time received:", currentTime);
+
+        if (synced && currentTime < 1) {
+          console.log("🔁 Host video looped — restarting audio from 0");
+          audio.currentTime = 0;
+          audio.play();
         }
       });
 
       button.addEventListener("click", () => {
         button.style.display = "none";
         audio.muted = false;
+        audio.currentTime = latestHostTime;
 
-        const tryPlay = () => {
-          audio.currentTime = latestHostTime;
-          audio.play()
-            .then(() => {
-              console.log("🎧 Audio started at host time:", latestHostTime);
-              synced = true;
-              setTimeout(() => {
-                const drift = Math.abs(audio.currentTime - latestHostTime);
-                if (drift > 0.3) {
-                  console.log("🔄 Drift detected after start. Correcting...");
-                  audio.currentTime = latestHostTime;
-                }
-              }, 1000);
-            })
-            .catch((err) => {
-              console.warn("❌ Playback error. Retrying...", err);
-              setTimeout(tryPlay, 500);
-            });
-        };
-
-        tryPlay();
+        audio.play().then(() => {
+          console.log("🎧 Audio started at", latestHostTime);
+          synced = true;
+        }).catch((err) => {
+          console.warn("❌ Playback error:", err);
+        });
       });
     });
   </script>
