@@ -64,8 +64,12 @@
       const socket = new WebSocket("wss://video-sync-server-production-164e.up.railway.app");
 
       let synced = false;
+      let resyncedOnce = false;
 
-      // Preload audio
+      // Debug
+      console.log("🎛 Audio object debug:", audio.outerHTML);
+
+      // Preload
       audio.load();
 
       artBtn.addEventListener("click", () => {
@@ -78,38 +82,36 @@
 
         const tryPlay = () => {
           if (audio.paused) {
-            audio.play().then(() => {
-              console.log("🎧 Audio playback started");
-            }).catch(err => {
-              console.warn("❌ Playback error, retrying...", err.name, err.message);
-              setTimeout(tryPlay, 1000);
-            });
+            audio.play()
+              .then(() => {
+                console.log("🎧 Audio playback started");
+              })
+              .catch(err => {
+                console.warn("❌ Playback error, retrying...", err.name, err.message);
+                setTimeout(tryPlay, 1000);
+              });
           }
         };
 
         tryPlay();
       });
 
-      const DRIFT_TOLERANCE = 0.3;
-      const MAX_RATE_ADJUSTMENT = 0.05;
-
       socket.addEventListener("message", (event) => {
         const { currentTime } = JSON.parse(event.data);
-        const drift = audio.currentTime - currentTime;
 
         if (!synced) {
           audio.currentTime = currentTime;
-          synced = true;
           console.log("🕰 Initial sync to", currentTime);
+          synced = true;
           return;
         }
 
-        if (Math.abs(drift) > DRIFT_TOLERANCE) {
-          const correction = Math.max(Math.min(-drift * 0.1, MAX_RATE_ADJUSTMENT), -MAX_RATE_ADJUSTMENT);
-          audio.playbackRate = 1 + correction;
-          console.log(\`🎛 Adjusting playbackRate to \${audio.playbackRate.toFixed(3)} to correct drift of \${drift.toFixed(2)}s\`);
-        } else {
-          audio.playbackRate = 1;
+        const diff = Math.abs(audio.currentTime - currentTime);
+
+        if (diff > 20 && !resyncedOnce) {
+          audio.currentTime = currentTime;
+          console.log("🔄 Resync due to host loop to", currentTime);
+          resyncedOnce = true;
         }
       });
     });
